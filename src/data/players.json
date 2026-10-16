@@ -1,0 +1,37 @@
+[
+    {
+        "id": "bernat",
+        "name": "Bernat",
+        "avatar": "/profile-photos/bernat.jpeg"
+    },
+    {
+        "id": "bonet",
+        "name": "Bonet",
+        "avatar": "/profile-photos/bonet.jpg"
+    },
+    {
+        "id": "cabra",
+        "name": "Cabra",
+        "avatar": "/profile-photos/cabra.jpg"
+    },
+    {
+        "id": "gabri",
+        "name": "Gabri",
+        "avatar": "/profile-photos/gabri.jpeg"
+    },
+    {
+        "id": "luki",
+        "name": "Luki",
+        "avatar": "/profile-photos/luki.jpg"
+    },
+    {
+        "id": "roger",
+        "name": "Roger",
+        "avatar": "/profile-photos/roger.jpeg"
+    },
+    {
+        "id": "uri",
+        "name": "Uri",
+        "avatar": "/profile-photos/uri.jpeg"
+    }
+]
