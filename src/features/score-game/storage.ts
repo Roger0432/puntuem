@@ -19,6 +19,8 @@ function isScoreRound(value: unknown): value is ScoreRound {
     return (
         isNullableIntegerRecord(value.scores) &&
         isOptionalNullableIntegerRecord(value.bids) &&
+        isOptionalBooleanRecord(value.bidHits) &&
+        isOptionalNullableIntegerRecord(value.bonuses) &&
         isOptionalNullableIntegerRecord(value.tricks) &&
         isOptionalNullableIntegerRecord(value.capturedPirates) &&
         isOptionalBooleanRecord(value.mermaidCapturedSkullKing)

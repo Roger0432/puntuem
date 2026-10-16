@@ -17,7 +17,8 @@ export function isMatchFinished(match: ScoreGameMatch, scoreLimit = 100): boolea
         return match.rounds.length === 10 && match.rounds.every((round) =>
             match.playerIds.every((playerId) =>
                 Number.isInteger(round.bids?.[playerId]) &&
-                Number.isInteger(round.tricks?.[playerId]) &&
+                (typeof round.bidHits?.[playerId] === "boolean" ||
+                    Number.isInteger(round.tricks?.[playerId])) &&
                 Number.isInteger(round.scores[playerId]),
             ),
         );
@@ -81,6 +82,19 @@ function getRoundLeaders(
 export function getSkullKingRoundScore(
     roundNumber: number,
     bid: number,
+    bidHit: boolean,
+    bonus: number,
+): number {
+    if (bid === 0) {
+        return (bidHit ? roundNumber * 10 : -roundNumber * 10) + bonus;
+    }
+
+    return (bidHit ? bid * 20 : -bid * 10) + bonus;
+}
+
+export function getLegacySkullKingRoundScore(
+    roundNumber: number,
+    bid: number,
     tricks: number,
     capturedPirates: number,
     mermaidCapturedSkullKing: boolean,
@@ -88,9 +102,7 @@ export function getSkullKingRoundScore(
     if (bid === 0) {
         return tricks === 0 ? roundNumber * 10 : -roundNumber * 10;
     }
-
     if (bid !== tricks) return -Math.abs(bid - tricks) * 10;
-
     return bid * 20 + capturedPirates * 30 + (mermaidCapturedSkullKing ? 50 : 0);
 }
 

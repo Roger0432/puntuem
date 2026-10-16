@@ -8,6 +8,7 @@ import {
     getMatchWinners,
     getRoundPointLeaders,
     getRoundWinners,
+    getLegacySkullKingRoundScore,
     getSkullKingRoundScore,
     isMatchFinished,
 } from "./model";
@@ -24,7 +25,7 @@ type ScoreGamePageProps = {
     gameMode?: ScoreGameMatch["gameMode"];
 };
 
-type SkullKingInputField = "bid" | "tricks" | "capturedPirates" | "mermaidCapturedSkullKing";
+type SkullKingInputField = "bid" | "bidHit" | "bonus";
 type ScoreInputChange = (
     roundId: string,
     playerId: string,
@@ -35,22 +36,34 @@ type ScoreInputChange = (
 function recalculateSkullKingRound(round: ScoreRound, roundNumber: number, playerIds: string[]): ScoreRound {
     return {
         ...round,
-        scores: Object.fromEntries(playerIds.map((playerId) => {
-            const bid = round.bids?.[playerId];
-            const tricks = round.tricks?.[playerId];
-            const score = typeof bid === "number" && Number.isInteger(bid) &&
-                typeof tricks === "number" && Number.isInteger(tricks)
-                ? getSkullKingRoundScore(
-                    roundNumber,
-                    bid,
-                    tricks,
-                    round.capturedPirates?.[playerId] ?? 0,
-                    round.mermaidCapturedSkullKing?.[playerId] ?? false,
-                )
-                : null;
-            return [playerId, score];
-        })),
+        scores: Object.fromEntries(playerIds.map((playerId) => [
+            playerId,
+            getPlayerSkullKingScore(round, roundNumber, playerId),
+        ])),
     };
+}
+
+function getPlayerSkullKingScore(round: ScoreRound, roundNumber: number, playerId: string): number | null {
+    const bid = round.bids?.[playerId];
+    if (typeof bid !== "number" || !Number.isInteger(bid)) return null;
+
+    const tricks = round.tricks?.[playerId];
+    const hasNewScoreInput = typeof round.bidHits?.[playerId] === "boolean" ||
+        typeof round.bonuses?.[playerId] === "number";
+    if (!hasNewScoreInput && typeof tricks === "number" && Number.isInteger(tricks)) {
+        return getLegacySkullKingRoundScore(
+            roundNumber,
+            bid,
+            tricks,
+            round.capturedPirates?.[playerId] ?? 0,
+            round.mermaidCapturedSkullKing?.[playerId] ?? false,
+        );
+    }
+
+    const bidHit = round.bidHits?.[playerId] ?? (typeof tricks === "number" ? bid === tricks : false);
+    const legacyBonus = (round.capturedPirates?.[playerId] ?? 0) * 30 +
+        (round.mermaidCapturedSkullKing?.[playerId] ? 50 : 0);
+    return getSkullKingRoundScore(roundNumber, bid, bidHit, round.bonuses?.[playerId] ?? legacyBonus);
 }
 
 function PlayerSelector({
@@ -95,62 +108,78 @@ function SkullKingScoreInputs({
     onChange: ScoreInputChange;
 }) {
     const bidId = `bid-${match.id}-${round.id}-${player.id}`;
-    const tricksId = `tricks-${match.id}-${round.id}-${player.id}`;
-    const piratesId = `pirates-${match.id}-${round.id}-${player.id}`;
+    const bonusId = `bonus-${match.id}-${round.id}-${player.id}`;
+    const bid = round.bids?.[player.id] ?? null;
+    const bidHit = round.bidHits?.[player.id] ??
+        (typeof bid === "number" && typeof round.tricks?.[player.id] === "number"
+            ? bid === round.tricks[player.id]
+            : false);
+    const legacyBonus = (round.capturedPirates?.[player.id] ?? 0) * 30 +
+        (round.mermaidCapturedSkullKing?.[player.id] ? 50 : 0);
+    const bonus = round.bonuses?.[player.id] ?? legacyBonus;
     const score = round.scores[player.id];
 
     return (
         <div className="skull-king-score-inputs">
-            <label htmlFor={bidId}>Aposta</label>
-            <input
-                id={bidId}
-                className="score-input skull-king-input"
-                type="number"
-                min="0"
-                max={roundIndex + 1}
-                step="1"
-                value={round.bids?.[player.id] ?? ""}
-                onChange={(event) => onChange(round.id, player.id, event.target.value, "bid")}
-            />
-            <label htmlFor={tricksId}>Guanyades</label>
-            <input
-                id={tricksId}
-                className="score-input skull-king-input"
-                type="number"
-                min="0"
-                max={roundIndex + 1}
-                step="1"
-                value={round.tricks?.[player.id] ?? ""}
-                onChange={(event) => onChange(round.id, player.id, event.target.value, "tricks")}
-            />
-            <label htmlFor={piratesId}>Pirates capturats amb el Skull King (inclosa Scary Mary)</label>
-            <input
-                id={piratesId}
-                className="score-input skull-king-input"
-                type="number"
-                min="0"
-                max="5"
-                step="1"
-                value={round.capturedPirates?.[player.id] ?? 0}
-                onChange={(event) =>
-                    onChange(round.id, player.id, event.target.value, "capturedPirates")
-                }
-            />
-            <label className="skull-king-mermaid">
+            <div className="skull-king-stepper" aria-label={`Aposta de ${player.name}`}>
+                <button
+                    type="button"
+                    aria-label={`Redueix l'aposta de ${player.name}`}
+                    title="Redueix l'aposta"
+                    disabled={bid === 0}
+                    onClick={() => onChange(round.id, player.id, String(bid === null ? 0 : bid - 1), "bid")}
+                >−</button>
                 <input
-                    type="checkbox"
-                    checked={round.mermaidCapturedSkullKing?.[player.id] ?? false}
-                    onChange={(event) =>
-                        onChange(
-                            round.id,
-                            player.id,
-                            event.target.checked ? "1" : "0",
-                            "mermaidCapturedSkullKing",
-                        )
-                    }
+                    id={bidId}
+                    className="score-input skull-king-input"
+                    type="number"
+                    aria-label={`Aposta de ${player.name}`}
+                    readOnly
+                    value={bid ?? ""}
                 />
-                Sirena captura el Skull King (+50)
-            </label>
+                <button
+                    type="button"
+                    aria-label={`Augmenta l'aposta de ${player.name}`}
+                    title="Augmenta l'aposta"
+                    disabled={bid === roundIndex + 1}
+                    onClick={() => onChange(round.id, player.id, String(bid === null ? 1 : bid + 1), "bid")}
+                >+</button>
+            </div>
+            <input
+                className="skull-king-hit-checkbox"
+                type="checkbox"
+                aria-label={`${player.name} ha encertat l'aposta`}
+                title="Ha encertat l'aposta"
+                checked={bidHit}
+                onChange={(event) => onChange(
+                    round.id,
+                    player.id,
+                    event.target.checked ? "1" : "0",
+                    "bidHit",
+                )}
+            />
+            <div className="skull-king-stepper" aria-label={`Bonus de ${player.name}`}>
+                <button
+                    type="button"
+                    aria-label={`Resta 10 punts de bonus a ${player.name}`}
+                    title="Resta 10 punts"
+                    onClick={() => onChange(round.id, player.id, String(bonus - 10), "bonus")}
+                >−</button>
+                <input
+                    id={bonusId}
+                    className="score-input skull-king-input"
+                    type="number"
+                    aria-label={`Bonus de ${player.name}`}
+                    readOnly
+                    value={bonus}
+                />
+                <button
+                    type="button"
+                    aria-label={`Afegeix 10 punts de bonus a ${player.name}`}
+                    title="Afegeix 10 punts"
+                    onClick={() => onChange(round.id, player.id, String(bonus + 10), "bonus")}
+                >+</button>
+            </div>
             <strong className={`skull-king-round-score${typeof score === "number" && score > 0 ? " positive" : typeof score === "number" && score < 0 ? " negative" : ""}`}>
                 {score === null || score === undefined ? "—" : score > 0 ? `+${score}` : score}
             </strong>
@@ -175,6 +204,74 @@ function RoundScoreTable({
         .map((id) => players.find((player) => player.id === id))
         .filter((player): player is Player => player !== undefined);
     const totals = getMatchTotals(match);
+
+    if (scoreMode === "skull-king") {
+        return (
+            <div className="round-table-wrap skull-king-table-wrap">
+                <table className="round-table skull-king-table">
+                    <thead>
+                        <tr>
+                            <th className="skull-king-player-heading" scope="col">Jugador</th>
+                            {match.rounds.map((round, roundIndex) => (
+                                <th key={round.id} scope="col">
+                                    <span className="skull-king-round-heading">
+                                        <span>R{roundIndex + 1}</span>
+                                        <button
+                                            className="round-delete-button"
+                                            type="button"
+                                            aria-label={`Elimina la ronda ${roundIndex + 1}`}
+                                            title={`Elimina la ronda ${roundIndex + 1}`}
+                                            onClick={() => onDeleteRound(round.id, roundIndex + 1)}
+                                        >
+                                            <svg aria-hidden="true" viewBox="0 0 24 24">
+                                                <path d="M3 6h18M8 6V4h8v2m3 0-.9 14H5.9L5 6m4 4v6m6-6v6" />
+                                            </svg>
+                                        </button>
+                                    </span>
+                                </th>
+                            ))}
+                            <th className="skull-king-total-heading" scope="col">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {matchPlayers.map((player) => (
+                            <tr key={player.id}>
+                                <th className="skull-king-player-cell" scope="row">
+                                    <span className="skull-king-player">
+                                        <img src={player.avatar} alt="" />
+                                        <span>{player.name}</span>
+                                    </span>
+                                </th>
+                                {match.rounds.map((round, roundIndex) => (
+                                    <td key={round.id}>
+                                        <SkullKingScoreInputs
+                                            match={match}
+                                            round={round}
+                                            roundIndex={roundIndex}
+                                            player={player}
+                                            onChange={onScoreChange}
+                                        />
+                                    </td>
+                                ))}
+                                <td className="skull-king-player-total">{totals[player.id] ?? 0}</td>
+                            </tr>
+                        ))}
+                        <tr className="skull-king-leaders-row">
+                            <th scope="row">Més punts</th>
+                            {match.rounds.map((round) => (
+                                <td key={round.id}>
+                                    {getRoundPointLeaders(round, match.playerIds, players)
+                                        .map((player) => player.name)
+                                        .join(" · ") || "—"}
+                                </td>
+                            ))}
+                            <td>—</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        );
+    }
 
     return (
         <div className="round-table-wrap">
@@ -212,39 +309,25 @@ function RoundScoreTable({
                             </th>
                             {matchPlayers.map((player) => (
                                 <td key={player.id}>
-                                    {scoreMode === "skull-king" ? (
-                                        <SkullKingScoreInputs
-                                            match={match}
-                                            round={round}
-                                            roundIndex={roundIndex}
-                                            player={player}
-                                            onChange={onScoreChange}
+                                    <>
+                                        <label className="visually-hidden" htmlFor={`score-${match.id}-${round.id}-${player.id}`}>
+                                            Punts de {player.name}, ronda {roundIndex + 1}
+                                        </label>
+                                        <input
+                                            id={`score-${match.id}-${round.id}-${player.id}`}
+                                            className="score-input"
+                                            type="number"
+                                            step="1"
+                                            value={round.scores[player.id] ?? ""}
+                                            onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                                                onScoreChange(round.id, player.id, event.target.value)
+                                            }
                                         />
-                                    ) : (
-                                        <>
-                                            <label className="visually-hidden" htmlFor={`score-${match.id}-${round.id}-${player.id}`}>
-                                                Punts de {player.name}, ronda {roundIndex + 1}
-                                            </label>
-                                            <input
-                                                id={`score-${match.id}-${round.id}-${player.id}`}
-                                                className="score-input"
-                                                type="number"
-                                                step="1"
-                                                value={round.scores[player.id] ?? ""}
-                                                onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                                                    onScoreChange(round.id, player.id, event.target.value)
-                                                }
-                                            />
-                                        </>
-                                    )}
+                                    </>
                                 </td>
                             ))}
                             <td className="round-winner">
-                                {(
-                                    scoreMode === "skull-king"
-                                        ? getRoundPointLeaders(round, match.playerIds, players)
-                                        : getRoundWinners(round, match.playerIds, players)
-                                ).map((player) => player.name).join(" · ") || "—"}
+                                {getRoundWinners(round, match.playerIds, players).map((player) => player.name).join(" · ") || "—"}
                             </td>
                         </tr>
                     ))}
@@ -432,9 +515,8 @@ function MatchCard({
             scores: Object.fromEntries(match.playerIds.map((playerId) => [playerId, null])),
             ...(scoreMode === "skull-king" ? {
                 bids: Object.fromEntries(match.playerIds.map((playerId) => [playerId, null])),
-                tricks: Object.fromEntries(match.playerIds.map((playerId) => [playerId, null])),
-                capturedPirates: Object.fromEntries(match.playerIds.map((playerId) => [playerId, 0])),
-                mermaidCapturedSkullKing: Object.fromEntries(match.playerIds.map((playerId) => [playerId, false])),
+                bidHits: Object.fromEntries(match.playerIds.map((playerId) => [playerId, false])),
+                bonuses: Object.fromEntries(match.playerIds.map((playerId) => [playerId, 0])),
             } : {}),
         };
         onUpdate((current) => ({ ...current, rounds: [...current.rounds, round] }));
@@ -443,10 +525,10 @@ function MatchCard({
     function updateScore(roundId: string, playerId: string, value: string, field?: SkullKingInputField) {
         if (scoreMode === "skull-king" && field) {
             const roundNumber = match.rounds.findIndex((round) => round.id === roundId) + 1;
-            const parsedNumber = value === "" ? null : Number(value);
-            if (field !== "mermaidCapturedSkullKing" && parsedNumber !== null) {
-                const max = field === "bid" || field === "tricks" ? roundNumber : 5;
-                if (!Number.isInteger(parsedNumber) || parsedNumber < 0 || parsedNumber > max) return;
+            const parsedNumber = Number(value);
+            if (field !== "bidHit" && (!Number.isSafeInteger(parsedNumber) ||
+                (field === "bid" && (parsedNumber < 0 || parsedNumber > roundNumber)))) {
+                return;
             }
 
             onUpdate((current) => ({
@@ -456,29 +538,10 @@ function MatchCard({
 
                     const updatedRound = field === "bid"
                         ? { ...round, bids: { ...round.bids, [playerId]: parsedNumber } }
-                        : field === "tricks"
-                            ? { ...round, tricks: { ...round.tricks, [playerId]: parsedNumber } }
-                            : field === "capturedPirates"
-                                ? { ...round, capturedPirates: { ...round.capturedPirates, [playerId]: parsedNumber } }
-                                : {
-                                    ...round,
-                                    mermaidCapturedSkullKing: {
-                                        ...round.mermaidCapturedSkullKing,
-                                        [playerId]: value === "1",
-                                    },
-                                };
-                    const bid = updatedRound.bids?.[playerId];
-                    const tricks = updatedRound.tricks?.[playerId];
-                    const pirateCaptures = updatedRound.capturedPirates?.[playerId] ?? 0;
-                    const mermaidCapture = updatedRound.mermaidCapturedSkullKing?.[playerId] ?? false;
-                    const score = typeof bid === "number" && Number.isInteger(bid) &&
-                        typeof tricks === "number" && Number.isInteger(tricks)
-                        ? getSkullKingRoundScore(index + 1, bid, tricks, pirateCaptures, mermaidCapture)
-                        : null;
-                    return {
-                        ...updatedRound,
-                        scores: { ...round.scores, [playerId]: score },
-                    };
+                        : field === "bidHit"
+                            ? { ...round, bidHits: { ...round.bidHits, [playerId]: value === "1" } }
+                            : { ...round, bonuses: { ...round.bonuses, [playerId]: parsedNumber } };
+                    return recalculateSkullKingRound(updatedRound, index + 1, current.playerIds);
                 }),
             }));
             return;
@@ -502,9 +565,11 @@ function MatchCard({
         if (!round) return;
 
         const hasScores = Object.values(round.scores).some((score) => typeof score === "number");
-        const hasBidsOrTricks = Object.values(round.bids ?? {}).some((value) => typeof value === "number") ||
+        const hasInputs = Object.values(round.bids ?? {}).some((value) => typeof value === "number") ||
+            Object.values(round.bonuses ?? {}).some((value) => typeof value === "number" && value !== 0) ||
+            Object.values(round.bidHits ?? {}).some(Boolean) ||
             Object.values(round.tricks ?? {}).some((value) => typeof value === "number");
-        if ((hasScores || hasBidsOrTricks) &&
+        if ((hasScores || hasInputs) &&
             !window.confirm(`Vols eliminar la ronda ${roundNumber} i les seves puntuacions?`)) {
             return;
         }
@@ -546,6 +611,16 @@ function MatchCard({
                     bids: Object.fromEntries(
                         playerIds.map((playerId) => [playerId, round.bids?.[playerId] ?? null]),
                     ),
+                    ...(round.bidHits ? {
+                        bidHits: Object.fromEntries(
+                            playerIds.map((playerId) => [playerId, round.bidHits?.[playerId] ?? false]),
+                        ),
+                    } : {}),
+                    ...(round.bonuses ? {
+                        bonuses: Object.fromEntries(
+                            playerIds.map((playerId) => [playerId, round.bonuses?.[playerId] ?? 0]),
+                        ),
+                    } : {}),
                     tricks: Object.fromEntries(
                         playerIds.map((playerId) => [playerId, round.tricks?.[playerId] ?? null]),
                     ),

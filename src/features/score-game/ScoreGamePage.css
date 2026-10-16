@@ -513,6 +513,103 @@
     object-fit: cover;
 }
 
+.skull-king-table {
+    width: max-content;
+    min-width: 100%;
+    table-layout: fixed;
+    white-space: normal;
+}
+
+.skull-king-table th,
+.skull-king-table td {
+    width: 108px;
+    min-width: 108px;
+    padding: 7px 5px;
+}
+
+.skull-king-table .skull-king-player-heading,
+.skull-king-table .skull-king-player-cell {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    width: 118px;
+    min-width: 118px;
+}
+
+.skull-king-table .skull-king-player-heading {
+    z-index: 2;
+    text-align: left;
+}
+
+.skull-king-round-heading {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+}
+
+.skull-king-table .round-delete-button {
+    position: static;
+    width: 22px;
+    height: 22px;
+    transform: none;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.skull-king-table .round-delete-button:hover {
+    background: rgba(255, 255, 255, 0.16);
+    color: #fff;
+}
+
+.skull-king-table .round-delete-button:focus-visible {
+    outline-color: #fff;
+}
+
+.skull-king-table .round-delete-button svg {
+    width: 13px;
+    height: 13px;
+}
+
+.skull-king-player {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    text-align: left;
+}
+
+.skull-king-player img {
+    width: 28px;
+    height: 28px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.skull-king-player-total {
+    background: #edf3ed;
+    color: #193f30;
+    font-weight: 700;
+}
+
+.skull-king-table .skull-king-leaders-row th,
+.skull-king-table .skull-king-leaders-row td {
+    border-top: 2px solid #cbd6cc;
+    border-bottom: 0;
+    background: #eaf1e9;
+    color: #193f30;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.skull-king-table .skull-king-leaders-row th {
+    text-align: left;
+}
+
+.skull-king-table .skull-king-total-heading {
+    width: 76px;
+    min-width: 76px;
+}
+
 .round-table tbody th {
     background: #f3f5f1;
     color: #42564a;
@@ -588,50 +685,81 @@
 
 .skull-king-score-inputs {
     display: grid;
-    min-width: 120px;
-    justify-items: center;
-    gap: 4px 5px;
-    grid-template-columns: 1fr 1fr;
+    min-width: 0;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    grid-template-columns: 1fr;
 }
 
-.skull-king-score-inputs > label:not(.skull-king-mermaid) {
-    grid-column: 1 / -1;
-    color: #657168;
-    font-size: 9px;
-    line-height: 1.2;
-    white-space: normal;
+.skull-king-stepper {
+    display: inline-flex;
+    height: 30px;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+}
+
+.skull-king-stepper button {
+    display: grid;
+    width: 22px;
+    height: 25px;
+    flex: 0 0 auto;
+    place-items: center;
+    padding: 0;
+    border: 1px solid #d8e0d8;
+    border-radius: 6px;
+    background: #f5f8f4;
+    color: var(--green);
+    font: inherit;
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.skull-king-stepper button:hover:not(:disabled) {
+    border-color: var(--green);
+    background: #eaf1e9;
+}
+
+.skull-king-stepper button:focus-visible,
+.skull-king-hit-checkbox:focus-visible {
+    outline: 3px solid #e98b5b;
+    outline-offset: 2px;
+}
+
+.skull-king-stepper button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
 }
 
 .score-input.skull-king-input {
-    width: 48px;
-    min-height: 32px;
-    padding: 0 3px;
+    width: 32px;
+    min-height: 27px;
+    padding: 0 2px;
     font-size: 13px;
+    appearance: textfield;
+    cursor: default;
+    -moz-appearance: textfield;
 }
 
-.skull-king-mermaid {
-    display: flex;
-    grid-column: 1 / -1;
-    align-items: flex-start;
-    gap: 5px;
-    margin-top: 3px;
-    color: #657168;
-    font-size: 9px;
-    line-height: 1.3;
-    text-align: left;
-    white-space: normal;
-}
-
-.skull-king-mermaid input {
-    width: 14px;
-    height: 14px;
-    flex: 0 0 auto;
+.score-input.skull-king-input::-webkit-inner-spin-button,
+.score-input.skull-king-input::-webkit-outer-spin-button {
     margin: 0;
+    -webkit-appearance: none;
+}
+
+.skull-king-hit-checkbox {
+    width: 17px;
+    height: 17px;
+    margin: 0;
+    justify-self: center;
     accent-color: var(--green);
+    cursor: pointer;
 }
 
 .skull-king-round-score {
-    grid-column: 1 / -1;
     color: #59665c;
     font-size: 13px;
     font-weight: 700;
@@ -821,6 +949,36 @@
     .round-table td {
         min-width: 76px;
         padding: 9px 8px;
+    }
+
+    .skull-king-table th,
+    .skull-king-table td {
+        width: 88px;
+        min-width: 88px;
+        padding: 5px 2px;
+    }
+
+    .skull-king-table .skull-king-player-heading,
+    .skull-king-table .skull-king-player-cell {
+        width: 96px;
+        min-width: 96px;
+        padding-right: 5px;
+        padding-left: 5px;
+    }
+
+    .skull-king-table .skull-king-total-heading {
+        width: 60px;
+        min-width: 60px;
+    }
+
+    .skull-king-player {
+        gap: 5px;
+        font-size: 10px;
+    }
+
+    .skull-king-player img {
+        width: 24px;
+        height: 24px;
     }
 
     .score-input {
